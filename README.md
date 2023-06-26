@@ -19,4 +19,6 @@ git clone https://github.com/insem-inc/2023_Insem_BluetoothLE_Seminar.git
 
 - 압축 해제 후 "*_exercise"와 "*_solution"폴더를 "<sdk 설치 폴더>/examples/ble_peripheral" 아래로 이동
 
-
+-------------
+## PDF
+PDF 파일 암호는 세미나 당일 공지하도록 하겠습니다.
