@@ -1,0 +1,125 @@
+/* STEP 1-1 - Add timer to check out throught on RTT viewer. And also adds variables related with throughput test*/
+APP_TIMER_DEF(m_throughput_timer_id);
+
+volatile uint32_t received_bytes = 0;
+volatile uint32_t sent_bytes = 0;
+volatile bool data_ready = false;
+
+
+
+
+/* STEP 1-2 - This handler outputs BLE data throughput on RTT viewer. */
+static void throughput_log_handler(void * p_context)
+{
+    uint32_t received_bitrate;
+    uint32_t sent_bitrate;
+
+    received_bitrate = received_bytes*8/1024;
+    sent_bitrate = sent_bytes*8/1024;
+
+    received_bytes = 0;
+    sent_bytes = 0;
+        
+    NRF_LOG_INFO("Received %d Kbps", received_bitrate);
+    NRF_LOG_INFO("Sent %d Kbps", sent_bitrate);
+}
+
+
+
+
+/* STEP 1-3 - it creates 1 second timer for BLE throughput result output */
+    err_code = app_timer_create(&m_throughput_timer_id, APP_TIMER_MODE_REPEATED, throughput_log_handler);
+    APP_ERROR_CHECK(err_code);
+    
+    err_code = app_timer_start(m_throughput_timer_id, APP_TIMER_TICKS(1000), NULL);
+    APP_ERROR_CHECK(err_code);
+
+
+
+
+/* STEP 1-4 - disable uart output to focus a BLE throughput */
+#if 0 
+        for (uint32_t i = 0; i < p_evt->params.rx_data.length; i++)
+        {
+            do
+            {
+                err_code = app_uart_put(p_evt->params.rx_data.p_data[i]);
+                if ((err_code != NRF_SUCCESS) && (err_code != NRF_ERROR_BUSY))
+                {
+                    NRF_LOG_ERROR("Failed receiving NUS message. Error 0x%x. ", err_code);
+                    APP_ERROR_CHECK(err_code);
+                }
+            } while (err_code == NRF_ERROR_BUSY);
+        }
+        if (p_evt->params.rx_data.p_data[p_evt->params.rx_data.length - 1] == '\r')
+        {
+            while (app_uart_put('\n') == NRF_ERROR_BUSY);
+        }
+#else
+        received_bytes += p_evt->params.rx_data.length;
+#endif
+
+
+
+
+/* STEP 1-5 - Use and Upadte 2Mbps PHY */
+            ble_gap_phys_t const phys =
+            {
+                .rx_phys = BLE_GAP_PHY_2MBPS,
+                .tx_phys = BLE_GAP_PHY_2MBPS,
+            };
+            err_code = sd_ble_gap_phy_update(p_ble_evt->evt.gap_evt.conn_handle, &phys);
+            APP_ERROR_CHECK(err_code);
+
+
+
+
+/* STEP 1-6 - BLE data transmission starts after button 4 pushed. */
+        case BSP_EVENT_KEY_3:
+            NRF_LOG_INFO("Button 4 pushed");
+            data_ready = true;
+            break;
+
+
+
+
+/* STEP 1-7 - Add variables for ble_nus_data_send function. */
+    ret_code_t err_code;
+    uint8_t packet_nr = 0;
+    uint16_t nus_len = 0;
+    uint8_t data[247] = {0};
+
+
+
+
+/* STEP 1-8 - BLE Data transmission tries continuously. */
+        if (data_ready)
+        {
+            nus_len = m_ble_nus_max_data_len;
+            data[0] = packet_nr++;
+            do
+            {
+                err_code = ble_nus_data_send(&m_nus, data, &nus_len, m_conn_handle);
+                if (err_code == NRF_SUCCESS)
+                {
+                    sent_bytes += nus_len;
+                }
+            }while (err_code == NRF_SUCCESS);
+        }
+
+
+
+
+/* STEP 2-1 - Change a max data length of ble_nus_data_send function. */
+#if 0
+static uint16_t   m_ble_nus_max_data_len = BLE_GATT_ATT_MTU_DEFAULT - 3;            /**< Maximum length of data (in bytes) that can be transmitted to the peer by the Nordic UART service module. */
+#else
+static uint16_t   m_ble_nus_max_data_len = NRF_SDH_BLE_GATT_MAX_MTU_SIZE - 3;       
+#endif
+
+
+
+
+#ifndef NRF_SDH_BLE_GAP_EVENT_LENGTH
+#define NRF_SDH_BLE_GAP_EVENT_LENGTH 500//6 /* STEP 2-2 */
+#endif
