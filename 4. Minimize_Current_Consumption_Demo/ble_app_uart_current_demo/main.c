@@ -80,41 +80,6 @@
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
 
-/* STEP 1-1 - Include the header files and define the data */
-#include "nrf_sdm.h"
-#include "app_error.h"
-#include "ble.h"
-#include "ble_err.h"
-#include "peer_manager.h"
-#include "fds.h"
-#include "ble_conn_state.h"
-#include "nrf_ble_gatt.h"
-#include "nrf_ble_qwr.h"
-#include "peer_manager_handler.h"
-
-#define SEC_PARAM_BOND                  1                                           /**< Perform bonding. */
-#define SEC_PARAM_MITM                  0                                           /**< Man In The Middle protection not required. */
-#define SEC_PARAM_LESC                  0                                           /**< LE Secure Connections not enabled. */
-#define SEC_PARAM_KEYPRESS              0                                           /**< Keypress notifications not enabled. */
-#define SEC_PARAM_IO_CAPABILITIES       BLE_GAP_IO_CAPS_NONE                        /**< No I/O capabilities. */
-#define SEC_PARAM_OOB                   0                                           /**< Out Of Band data not available. */
-#define SEC_PARAM_MIN_KEY_SIZE          7                                           /**< Minimum encryption key size. */
-#define SEC_PARAM_MAX_KEY_SIZE          16                                          /**< Maximum encryption key size. */
-
-/* STEP 2-1 - Add code for Passkey Entry */
-//#define SEC_PARAM_BOND                  1                                           /**< Perform bonding. */
-//#define SEC_PARAM_MITM                  1                                           /**< Man In The Middle protection not required. */
-//#define SEC_PARAM_LESC                  0                                           /**< LE Secure Connections not enabled. */
-//#define SEC_PARAM_KEYPRESS              0                                           /**< Keypress notifications not enabled. */
-//#define SEC_PARAM_IO_CAPABILITIES       BLE_GAP_IO_CAPS_DISPLAY_ONLY                /**< Display I/O capabilities. */
-//#define SEC_PARAM_OOB                   0                                           /**< Out Of Band data not available. */
-//#define SEC_PARAM_MIN_KEY_SIZE          7                                           /**< Minimum encryption key size. */
-//#define SEC_PARAM_MAX_KEY_SIZE          16                                          /**< Maximum encryption key size. */
-
-//#define PASSKEY_TXT                     "Passkey:"                                  /**< Message to be displayed together with the pass-key. */
-//#define PASSKEY_TXT_LENGTH              8                                           /**< Length of message to be displayed together with the pass-key. */
-//#define PASSKEY_LENGTH                  6                                           /**< Length of pass-key received by the stack for display. */
-
 #define APP_BLE_CONN_CFG_TAG            1                                           /**< A tag identifying the SoftDevice BLE configuration. */
 
 #define DEVICE_NAME                     "Nordic_UART"                               /**< Name of device. Will be included in the advertising data. */
@@ -124,7 +89,7 @@
 
 #define APP_ADV_INTERVAL                64                                          /**< The advertising interval (in units of 0.625 ms. This value corresponds to 40 ms). */
 
-#define APP_ADV_DURATION                0 //18000                                       /**< The advertising duration (180 seconds) in units of 10 milliseconds. */
+#define APP_ADV_DURATION                0//18000                                       /**< The advertising duration (180 seconds) in units of 10 milliseconds. */
 
 #define MIN_CONN_INTERVAL               MSEC_TO_UNITS(20, UNIT_1_25_MS)             /**< Minimum acceptable connection interval (20 ms), Connection interval uses 1.25 ms units. */
 #define MAX_CONN_INTERVAL               MSEC_TO_UNITS(75, UNIT_1_25_MS)             /**< Maximum acceptable connection interval (75 ms), Connection interval uses 1.25 ms units. */
@@ -402,12 +367,6 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
             m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
             err_code = nrf_ble_qwr_conn_handle_assign(&m_qwr, m_conn_handle);
             APP_ERROR_CHECK(err_code);
-/* STEP 1-2 - To encrypt traffic on a link, the application call the pm_conn_secure function */
-            err_code = pm_conn_secure(p_ble_evt->evt.gap_evt.conn_handle, false);
-            if (err_code != NRF_ERROR_BUSY)
-            {
-                APP_ERROR_CHECK(err_code);
-            }
             break;
 
         case BLE_GAP_EVT_DISCONNECTED:
@@ -429,10 +388,9 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
         } break;
 
         case BLE_GAP_EVT_SEC_PARAMS_REQUEST:
-/* STEP 1-3 - Remove the original code that does not support pairing */
             // Pairing not supported
-            //err_code = sd_ble_gap_sec_params_reply(m_conn_handle, BLE_GAP_SEC_STATUS_PAIRING_NOT_SUPP, NULL, NULL);
-            //APP_ERROR_CHECK(err_code);
+            err_code = sd_ble_gap_sec_params_reply(m_conn_handle, BLE_GAP_SEC_STATUS_PAIRING_NOT_SUPP, NULL, NULL);
+            APP_ERROR_CHECK(err_code);
             break;
 
         case BLE_GATTS_EVT_SYS_ATTR_MISSING:
@@ -454,16 +412,6 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
                                              BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
             APP_ERROR_CHECK(err_code);
             break;
-
-/* STEP 2-2 - Add code to display passkey */
-        //case BLE_GAP_EVT_PASSKEY_DISPLAY:
-        //{
-        //    char passkey[PASSKEY_LENGTH + 1];
-        //    memcpy(passkey, p_ble_evt->evt.gap_evt.params.passkey_display.passkey, PASSKEY_LENGTH);
-        //    passkey[PASSKEY_LENGTH] = 0;
-        //    printf("Passkey: %s\r\n",passkey);
-        //    NRF_LOG_INFO("Passkey: %s", nrf_log_push(passkey));
-        //} break;       
 
         default:
             // No implementation needed.
@@ -534,29 +482,37 @@ void bsp_event_handler(bsp_event_t event)
     uint32_t err_code;
     switch (event)
     {
-        case BSP_EVENT_SLEEP:
-            sleep_mode_enter();
+        case BSP_EVENT_KEY_0:
+            printf("--> Button1 : DCDC Mode Enable!\r\n");
+            sd_power_dcdc_mode_set(NRF_POWER_DCDC_ENABLE);                  
             break;
 
-        case BSP_EVENT_DISCONNECT:
-            err_code = sd_ble_gap_disconnect(m_conn_handle, BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
-            if (err_code != NRF_ERROR_INVALID_STATE)
-            {
-                APP_ERROR_CHECK(err_code);
-            }
+        case BSP_EVENT_KEY_1:
+            printf("--> Button2 : UART Disable!\r\n");
+            app_uart_close();            
+
+
+
             break;
 
-        case BSP_EVENT_WHITELIST_OFF:
-            if (m_conn_handle == BLE_CONN_HANDLE_INVALID)
-            {
-                err_code = ble_advertising_restart_without_whitelist(&m_advertising);
-                if (err_code != NRF_ERROR_INVALID_STATE)
-                {
-                    APP_ERROR_CHECK(err_code);
-                }
-            }
+        case BSP_EVENT_KEY_2:
+            //err_code = sd_ble_gap_adv_stop(m_advertising.adv_handle);
+            //APP_ERROR_CHECK(err_code);
+            //err_code = ble_advertising_start(&m_advertising, BLE_ADV_MODE_FAST);
+            //APP_ERROR_CHECK(err_code);      
+            printf("--> Button3 : TX Power -8dBm\r\n");
+            err_code = sd_ble_gap_tx_power_set(BLE_GAP_TX_POWER_ROLE_ADV, NULL, -8);
+            APP_ERROR_CHECK(err_code);
+
+
             break;
 
+        case BSP_EVENT_KEY_3:
+            printf("--> Button4 : System Off Sleep\r\n");
+            bsp_buttons_disable();
+            //nrf_gpio_cfg_sense_input(16, NRF_GPIO_PIN_PULLUP, NRF_GPIO_PIN_SENSE_LOW);
+            sd_power_system_off();            
+            break;
         default:
             break;
     }
@@ -691,7 +647,10 @@ static void buttons_leds_init(bool * p_erase_bonds)
 {
     bsp_event_t startup_event;
 
-    uint32_t err_code = bsp_init(BSP_INIT_LEDS | BSP_INIT_BUTTONS, bsp_event_handler);
+    //uint32_t err_code = bsp_init(BSP_INIT_LEDS | BSP_INIT_BUTTONS, bsp_event_handler);
+    //APP_ERROR_CHECK(err_code);
+
+    uint32_t err_code = bsp_init(BSP_INIT_BUTTONS, bsp_event_handler);
     APP_ERROR_CHECK(err_code);
 
     err_code = bsp_btn_ble_init(NULL, &startup_event);
@@ -734,99 +693,15 @@ static void idle_state_handle(void)
     }
 }
 
-/* STEP 1-4 - Add delete_bonds function and change advertising_start function */  
-/**@brief Function for starting advertising.
- */
-//static void advertising_start(void)
-//{
-//    uint32_t err_code = ble_advertising_start(&m_advertising, BLE_ADV_MODE_FAST);
-//    APP_ERROR_CHECK(err_code);
-//}
-
-/**@brief Clear bond information from persistent storage.
- */
-static void delete_bonds(void)
-{
-    ret_code_t err_code;
-
-    NRF_LOG_INFO("Erase bonds!");
-    printf("Erase bonds!\r\n");
-
-    err_code = pm_peers_delete();
-    APP_ERROR_CHECK(err_code);
-}
 
 /**@brief Function for starting advertising.
  */
-void advertising_start(bool erase_bonds)
+static void advertising_start(void)
 {
-    if (erase_bonds == true)
-    {
-        delete_bonds();
-        // Advertising is started by PM_EVT_PEERS_DELETE_SUCCEEDED event.
-    }
-    else
-    {
-        ret_code_t err_code;
-
-        err_code = ble_advertising_start(&m_advertising, BLE_ADV_MODE_FAST);
-        APP_ERROR_CHECK(err_code);
-    }
-}
-
-/**@brief Function for handling Peer Manager events.
- *
- * @param[in] p_evt  Peer Manager event.
- */
-static void pm_evt_handler(pm_evt_t const * p_evt)
-{
-    pm_handler_on_pm_evt(p_evt);
-    pm_handler_disconnect_on_sec_failure(p_evt);
-    pm_handler_flash_clean(p_evt);
-
-    switch (p_evt->evt_id)
-    {
-        case PM_EVT_PEERS_DELETE_SUCCEEDED:
-            advertising_start(false);
-            break;
-
-        default:
-            break;
-    }
-}
-
-/**@brief Function for the Peer Manager initialization.
- */
-static void peer_manager_init(void)
-{
-    ble_gap_sec_params_t sec_param;
-    ret_code_t           err_code;
-
-    err_code = pm_init();
-    APP_ERROR_CHECK(err_code);
-
-    memset(&sec_param, 0, sizeof(ble_gap_sec_params_t));
-
-    // Security parameters to be used for all security procedures.
-    sec_param.bond           = SEC_PARAM_BOND;
-    sec_param.mitm           = SEC_PARAM_MITM;
-    sec_param.lesc           = SEC_PARAM_LESC;
-    sec_param.keypress       = SEC_PARAM_KEYPRESS;
-    sec_param.io_caps        = SEC_PARAM_IO_CAPABILITIES;
-    sec_param.oob            = SEC_PARAM_OOB;
-    sec_param.min_key_size   = SEC_PARAM_MIN_KEY_SIZE;
-    sec_param.max_key_size   = SEC_PARAM_MAX_KEY_SIZE;
-    sec_param.kdist_own.enc  = 1;
-    sec_param.kdist_own.id   = 1;
-    sec_param.kdist_peer.enc = 1;
-    sec_param.kdist_peer.id  = 1;
-
-    err_code = pm_sec_params_set(&sec_param);
-    APP_ERROR_CHECK(err_code);
-
-    err_code = pm_register(pm_evt_handler);
+    uint32_t err_code = ble_advertising_start(&m_advertising, BLE_ADV_MODE_FAST);
     APP_ERROR_CHECK(err_code);
 }
+
 
 /**@brief Application main function.
  */
@@ -848,13 +723,13 @@ int main(void)
     conn_params_init();
 
     // Start execution.
-    printf("\r\nUART started.\r\n");
+    //printf("\r\nUART started.\r\n");
     NRF_LOG_INFO("Debug logging for UART over RTT started.");
-
-/* STEP 1-5 - Change advertising_start function and add the Peer Manager initialization */  
-    //advertising_start();    
-    peer_manager_init();
-    advertising_start(erase_bonds);
+    printf(" 1. Button1 : DCDC Mode Enable\r\n");
+    printf(" 2. Button2 : UART Disable\r\n");
+    printf(" 3. Button3 : TX Power -8dBm(Advertising)\r\n");
+    printf(" 4. Button4 : System Off Sleep\r\n\r\n");
+    advertising_start();
 
     // Enter main loop.
     for (;;)
